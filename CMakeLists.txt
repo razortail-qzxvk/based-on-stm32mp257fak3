@@ -11,7 +11,7 @@ target_include_directories(${PROJECT_NAME}
 
 target_sources(${PROJECT_NAME}
   PRIVATE
-  main.cpp
+    main.cpp
 )
 
 target_sources(${PROJECT_NAME}
@@ -21,18 +21,18 @@ target_sources(${PROJECT_NAME}
 
 target_include_directories(${PROJECT_NAME}
   SYSTEM PRIVATE
-  STM32CubeMX/CM33/Core/Inc
-  STM32CubeMX/Drivers/STM32MP2xx_HAL_Driver/Inc
-  STM32CubeMX/Drivers/STM32MP2xx_HAL_Driver/Inc/Legacy
-  STM32CubeMX/Utilities/CoproSync
-  STM32CubeMX/Drivers/CMSIS/Device/ST/STM32MP2xx/Include
-  STM32CubeMX/Drivers/CMSIS/Include
+    STM32CubeMX/CM33/Core/Inc
+    STM32CubeMX/Drivers/STM32MP2xx_HAL_Driver/Inc
+    STM32CubeMX/Drivers/STM32MP2xx_HAL_Driver/Inc/Legacy
+    STM32CubeMX/Utilities/CoproSync
+    STM32CubeMX/Drivers/CMSIS/Device/ST/STM32MP2xx/Include
+    STM32CubeMX/Drivers/CMSIS/Include
 )
 
 target_sources(${PROJECT_NAME}
   PRIVATE
-  STM32CubeMX/CM33/refactoring/startup_stm32mp257fakx.S
-  STM32CubeMX/Common/System/system_stm32mp2xx_m33.c
+    STM32CubeMX/CM33/refactoring/startup_stm32mp257fakx.S
+    STM32CubeMX/Common/System/system_stm32mp2xx_m33.c
 )
 
 target_compile_options(${PROJECT_NAME}
