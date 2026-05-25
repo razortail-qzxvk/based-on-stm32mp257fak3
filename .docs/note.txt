@@ -5,6 +5,8 @@
 2. cross.cmake
 3. 
 
+cmake --fresh -B build -G Ninja --toolchain ./.cross.cmake; cmake --build build -j
+
 '.' files
 - .docs
 - .vscode

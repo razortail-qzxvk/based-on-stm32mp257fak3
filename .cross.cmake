@@ -1,4 +1,3 @@
-
 # 交叉编译
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR arm)
@@ -22,11 +21,11 @@ set(CMAKE_ASM_COMPILER_TARGET arm-none-eabi)
 set(CMAKE_C_COMPILER_TARGET   arm-none-eabi)
 set(CMAKE_CXX_COMPILER_TARGET arm-none-eabi)
 # 全局编译选项
-set(arch_flags "-mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16")
+set(arch_flags "-mcpu=cortex-m33 -mfloat-abi=hard -mfpu=fpv5-sp-d16")
 set(core_flags "--config=llvmlibc.cfg")
 set(CMAKE_ASM_FLAGS_INIT "${arch_flags}")
 set(CMAKE_C_FLAGS_INIT   "${arch_flags} ${core_flags}")
-set(CMAKE_CXX_FLAGS_INIT "${arch_flags} ${core_flags} -stdlib=libc++") # LLVM原汁原味
+set(CMAKE_CXX_FLAGS_INIT "${arch_flags} ${core_flags} -stdlib=libc++")
 unset(core_flags)
 # compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
