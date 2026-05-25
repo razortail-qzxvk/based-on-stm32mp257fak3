@@ -1,7 +1,9 @@
+# cmake --fresh -B build -G Ninja --toolchain ./.cross.cmake; cmake --build build -j
 cmake_minimum_required(VERSION 3.28)
 project(stm32mp257fak3-m33 ASM C CXX)
 add_executable(${PROJECT_NAME})
 set(linker_script "${CMAKE_CURRENT_SOURCE_DIR}/STM32CubeMX/CM33/refactoring/STM32MP257FAKX_RAM.ld")
+set(global_marcos CORE_CM33 STM32MP257Fxx)
 
 target_include_directories(${PROJECT_NAME}
   PRIVATE
@@ -19,10 +21,18 @@ target_sources(${PROJECT_NAME}
 
 target_include_directories(${PROJECT_NAME}
   SYSTEM PRIVATE
+  STM32CubeMX/CM33/Core/Inc
+  STM32CubeMX/Drivers/STM32MP2xx_HAL_Driver/Inc
+  STM32CubeMX/Drivers/STM32MP2xx_HAL_Driver/Inc/Legacy
+  STM32CubeMX/Utilities/CoproSync
+  STM32CubeMX/Drivers/CMSIS/Device/ST/STM32MP2xx/Include
+  STM32CubeMX/Drivers/CMSIS/Include
 )
 
 target_sources(${PROJECT_NAME}
   PRIVATE
+  STM32CubeMX/CM33/refactoring/startup_stm32mp257fakx.S
+  STM32CubeMX/Common/System/system_stm32mp2xx_m33.c
 )
 
 target_compile_options(${PROJECT_NAME}
@@ -66,6 +76,10 @@ target_compile_options(${PROJECT_NAME}
 target_compile_definitions(${PROJECT_NAME}
   PRIVATE
     $<$<COMPILE_LANGUAGE:C,CXX>:
+      USE_HAL_DRIVER
+      USE_FULL_LL_DRIVER
+      ${global_marcos}
+      $<$<CONFIG:Debug>:DEBUG>
     >
 )
 
