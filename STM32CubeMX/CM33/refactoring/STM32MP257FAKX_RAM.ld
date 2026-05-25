@@ -1,12 +1,4 @@
 /**
- * 改动内容（区别于STM32CubeMX默认）：
- * - MEMORY段定义提前
- * - 删除了 __SCMI_SHM_region_start__ 和 __SCMI_SHM_region_end__ 定义（暂未使用）
- * - 删除了 GROUP(libgcc.a libc.a libm.a libnosys.a)
- * - 删除了 /DISCARD/ : { libc.a (*) libm.a (*) libgcc.a (*) }
- */
-
-/**
  * LLVM Linker Script 学习笔记
  * LLVM 的 Linker Script 语法和 GNU Linker Script 基本一致，但更严格一些。
  * ENTRY/MEMORY 等关键字被称为命令.
@@ -20,7 +12,18 @@
  * *(.text) 的意思是, 把所有 .o 文件里名叫 .text 的代码段都收集并拼接.
  * *(.text*) 编译器会把一些函数打包为 .text.fn 段, 所以这也是需要的.
  * *(.glue_7) *(.glue_7t) *(.eh_frame) 遗留代码
- * _sidata = LOADADDR(.data) 用于将 .data 段从 FLASH 加载到 RAM.
+ * _sidata = LOADADDR(.data) 便于汇编代码将 .data 段从 FLASH 加载到 RAM.
+ * At 是关键字，表示VMA(运行地址)的LMA(加载地址)的位置.
+ */
+
+/**
+ * 即便是STM32MP2这种比较复杂的类别，也就是干了这么几件事：
+ * - 定义入口
+ * - 内存布局分段
+ * - 打包并塞入分好的段
+ * - 留下一大堆符号各路代码使用
+ * 其实只要把“符号导出”解耦, 那这类脚本也可以严格明确, 甚至不用写.
+ * 但ARM显然更喜欢塞入更多的硬编码标识符，靠字符串匹配运行.
  */
 
 ENTRY(Reset_Handler)
@@ -133,7 +136,6 @@ SECTIONS
     _sdata = .;
     *(.data)
     *(.data*)
-
     _edata = .;
     . = ALIGN(LINKER_DEFAULT_ALIGNMENT);
   } >RAM AT> FLASH
