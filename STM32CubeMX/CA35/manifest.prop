@@ -1,0 +1,5 @@
+MANIFEST_VERSION = openstlinux-6.6-yocto-scarthgap-mpu-v26.02.18
+KERNEL_DT = ./DeviceTree/STM32CubeMX/kernel
+OPTEE_DT = ./DeviceTree/STM32CubeMX/optee-os
+UBOOT_DT = ./DeviceTree/STM32CubeMX/u-boot
+TFA_DT = ./DeviceTree/STM32CubeMX/tf-a

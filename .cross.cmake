@@ -1,0 +1,48 @@
+
+# 交叉编译
+set(CMAKE_SYSTEM_NAME Generic)
+set(CMAKE_SYSTEM_PROCESSOR arm)
+# 跳过链接测试
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+# 链接为elf后缀
+set(CMAKE_EXECUTABLE_SUFFIX_ASM .elf)
+set(CMAKE_EXECUTABLE_SUFFIX_C   .elf)
+set(CMAKE_EXECUTABLE_SUFFIX_CXX .elf)
+# ATfE & Ninja
+set(toolchain_path "C:/ATfE")
+set(CMAKE_C_COMPILER "${toolchain_path}/bin/clang.exe")
+set(CMAKE_MAKE_PROGRAM "C:/Users/Admin/AppData/Local/Microsoft/WinGet/Packages/Ninja-build.Ninja_Microsoft.Winget.Source_8wekyb3d8bbwe/ninja.exe" CACHE FILEPATH "")
+set(CMAKE_FIND_ROOT_PATH ${toolchain_path})
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+unset(toolchain_path)
+# --target=arm-none-eabi
+set(CMAKE_ASM_COMPILER_TARGET arm-none-eabi)
+set(CMAKE_C_COMPILER_TARGET   arm-none-eabi)
+set(CMAKE_CXX_COMPILER_TARGET arm-none-eabi)
+# 全局编译选项
+set(arch_flags "-mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16")
+set(core_flags "--config=llvmlibc.cfg")
+set(CMAKE_ASM_FLAGS_INIT "${arch_flags}")
+set(CMAKE_C_FLAGS_INIT   "${arch_flags} ${core_flags}")
+set(CMAKE_CXX_FLAGS_INIT "${arch_flags} ${core_flags} -stdlib=libc++") # LLVM原汁原味
+unset(core_flags)
+# compile_commands.json
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# llvm-objcopy 可以不指定.
+# llvm-objdump 可以不指定.
+# llvm-size 可以不指定.
+
+# -ffreestanding 现代LLVM不建议
+
+# --config=llvmlibc.cfg
+# 可以不写.
+# 这是一个非常深入的选项.
+# 首先, 对于GCC来说, newlib 来源于硬编码嗅探.
+# 现代 LLVM, 采用 .cfg + .yaml 的方式来重构.
+# llvmlibc.cfg 负责写清楚 --sysroot (所以你在构建配置里就不建议再写了), 以及通知 clang 开启Mutilib支持机制.
+# clang 接着会去 sysroot 找到一个名为 mutilib.yaml 的文件, 这个文件会**捕获**你的编译参数(-mcpu -mfpu -mfloat-abi等), 匹配之后再行追加其他参数.
+# 对于 CMake 来说, 这个新时代的嗅探机制和它本来的疯狗嗅探是冲突的, 所以你得限制死 CMAKE_FIND_ROOT_PATH_MODE_xxx.
+# Meson 则是正常的将 --config=llvmlibc.cfg 传递给 clang 就行.
