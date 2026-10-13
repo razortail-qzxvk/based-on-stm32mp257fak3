@@ -1,13 +1,9 @@
-# cmake --fresh -B build -G Ninja --toolchain ./.cross.cmake; cmake --build build -j
+# clear; cmake --fresh -B build -G Ninja --toolchain ./.cross.cmake; cmake --build build -j
 cmake_minimum_required(VERSION 3.28)
 project(stm32mp257fak3-m33 ASM C CXX)
 add_executable(${PROJECT_NAME})
 set(linker_script "${CMAKE_CURRENT_SOURCE_DIR}/STM32CubeMX/CM33/refactoring/STM32MP257FAKX_RAM.ld")
-set(global_marcos CORE_CM33 STM32MP257Fxx)
-
-target_include_directories(${PROJECT_NAME}
-  PRIVATE
-)
+set(global_marcos USE_HAL_DRIVER USE_FULL_LL_DRIVER CORE_CM33 STM32MP257Fxx)
 
 target_sources(${PROJECT_NAME}
   PRIVATE
@@ -17,6 +13,8 @@ target_sources(${PROJECT_NAME}
 target_sources(${PROJECT_NAME}
   PUBLIC
     FILE_SET CXX_MODULES FILES
+    BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
+    FILES ${ALL_CXX_MODULES}
 )
 
 target_include_directories(${PROJECT_NAME}
@@ -29,10 +27,19 @@ target_include_directories(${PROJECT_NAME}
     STM32CubeMX/Drivers/CMSIS/Include
 )
 
+file(GLOB_RECURSE CUBEMX_C_SOURCES
+    CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/STM32CubeMX/CM33/Core/Src/*.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/STM32CubeMX/Drivers/STM32MP2XX_HAL_Driver/Src/*.c"
+)
+list(REMOVE_ITEM CUBEMX_C_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/STM32CubeMX/CM33/Core/Src/sysmem.c")
+list(REMOVE_ITEM CUBEMX_C_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/STM32CubeMX/CM33/Core/Src/syscalls.c")
+
 target_sources(${PROJECT_NAME}
   PRIVATE
     STM32CubeMX/CM33/refactoring/startup_stm32mp257fakx.S
     STM32CubeMX/Common/System/system_stm32mp2xx_m33.c
+    ${CUBEMX_C_SOURCES}
 )
 
 target_compile_options(${PROJECT_NAME}
@@ -41,6 +48,7 @@ target_compile_options(${PROJECT_NAME}
 
     $<$<COMPILE_LANGUAGE:C,CXX>:
       -O0
+      -flto
       -Wall -Wextra -Wpedantic
       # -Werror
       -ffunction-sections -fdata-sections
@@ -55,6 +63,10 @@ target_compile_options(${PROJECT_NAME}
       -Wno-reserved-identifier
     >
 
+    $<$<COMPILE_LANGUAGE:C>:
+      -Wno-strict-prototypes
+    >
+
     $<$<COMPILE_LANGUAGE:CXX>:
       -fno-exceptions -fno-rtti
       -fno-threadsafe-statics
@@ -63,6 +75,7 @@ target_compile_options(${PROJECT_NAME}
 )
 
 # -Wall -Wextra -Wpedantic -Werror 警告
+# -flto 跨模块链接
 # -fno-exceptions -fno-rtti 禁用异常
 # -ffunction-sections -fdata-sections 配合 -Wl,--gc-sections 剔除未使用的函数和数据
 # -fstack-usage 生成 .su 文件, 记录栈占用.
@@ -76,8 +89,6 @@ target_compile_options(${PROJECT_NAME}
 target_compile_definitions(${PROJECT_NAME}
   PRIVATE
     $<$<COMPILE_LANGUAGE:C,CXX>:
-      USE_HAL_DRIVER
-      USE_FULL_LL_DRIVER
       ${global_marcos}
       $<$<CONFIG:Debug>:DEBUG>
     >
