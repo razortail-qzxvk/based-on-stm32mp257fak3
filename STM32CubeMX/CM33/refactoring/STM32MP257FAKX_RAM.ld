@@ -1,78 +1,123 @@
 /**
- * LLVM Linker Script 学习笔记
- * LLVM 的 Linker Script 语法和 GNU Linker Script 基本一致，但更严格一些。
- * ENTRY/MEMORY 等关键字被称为命令.
- * 变量被称为符号(Symbol), 有一个内置变量 '.' 代表当前地址.
- * 有内置函数, 比如 ALIGN(x) SIZEOF(.text) ORIGIN(region) LENGTH(region) LOADADDR(.data) KEEP(*(.isr_vectors))
- * 数字仅支持10进制和16进制
- * 双引号表示字符串, 有通配符
+ * 改动列表:
+ * - .fpu softvfp -> .fpu fpv5-sp-d16
+ * - Memories definition 定义提前到 Highest address of the user mode stack 前面
+ * - delete
+ *   Symbols needed for scmiagent to enable mailbox communication
+ *   __SCMI_SHM_region_start__  = ORIGIN(SCMI_SHMEM);
+ *   __SCMI_SHM_region_end__    = ORIGIN(SCMI_SHMEM)+LENGTH(SCMI_SHMEM);
+ *   Library configurations
+ *   GROUP(libgcc.a libc.a libm.a libnosys.a)
+ * - delete
+ *   Remove information from the compiler libraries
+ *   /DISCARD/ :
+ *   {
+ *     libc.a ( * )
+ *     libm.a ( * )
+ *     libgcc.a ( * )
+ *   }
  */
 
-/**
- * *(.text) 的意思是, 把所有 .o 文件里名叫 .text 的代码段都收集并拼接.
- * *(.text*) 编译器会把一些函数打包为 .text.fn 段, 所以这也是需要的.
- * *(.glue_7) *(.glue_7t) *(.eh_frame) 遗留代码
- * _sidata = LOADADDR(.data) 便于汇编代码将 .data 段从 FLASH 加载到 RAM.
- * At 是关键字，表示VMA(运行地址)的LMA(加载地址)的位置.
- */
+/*
+******************************************************************************
+**
+**  File        : LinkerScript.ld (debug in RAM dedicated)
+**
+**  Author		: Intropack Team
+**
+**  Abstract    : Linker script for STM32MP2xx Device from STM32MP2 series
+**
+**
+**                Set heap size, stack size and stack location according
+**                to application requirements.
+**
+**                Set memory bank area and size if external memory is used.
+**
+**  Target      : STMicroelectronics STM32
+**
+**  Distribution: The file is distributed as is without any warranty
+**                of any kind.
+**
+*****************************************************************************
+** @attention
+**
+** Copyright (c) 2026 STMicroelectronics.
+** All rights reserved.
+**
+** This software component is licensed by ST under Apache License, Version 2.0,
+** the "License"; You may not use this file except in compliance with the
+** License. You may obtain a copy of the License at:
+**                        opensource.org/licenses/Apache-2.0
+**
+*****************************************************************************
+*/
 
-/**
- * 即便是STM32MP2这种比较复杂的类别，也就是干了这么几件事：
- * - 定义入口
- * - 内存布局分段
- * - 打包并塞入分好的段
- * - 留下一大堆符号各路代码使用
- * 其实只要把“符号导出”解耦, 那这类脚本也可以严格明确, 甚至不用写.
- * 但ARM显然更喜欢塞入更多的硬编码标识符，靠字符串匹配运行.
- */
-
+/* Entry Point */
 ENTRY(Reset_Handler)
 
+/* Memories definition */
 MEMORY
 {
-  FLASH	        (rx)  : ORIGIN = 0x80100600, LENGTH = 8387072
-  /* 中断向量表 */
+  FLASH	(rx)	: ORIGIN = 0x80100600, LENGTH = 8387072
   NS_VECTOR_TBL	(xrw)	: ORIGIN = 0x80100000, LENGTH = 1536
-  /* A核与M核通信(OpenAMP)共享内存 */
   VIRTIO_SHMEM	(xrw)	: ORIGIN = 0x812f8000, LENGTH = 32K
-  RAM	          (xrw)	: ORIGIN = 0x80a00000, LENGTH = 1024K
-  /* 核间通信资源表 */
-  IPC_SHMEM_1	  (xrw)	: ORIGIN = 0x81200000, LENGTH = 992K
+  IPC_SHMEM_1	(xrw)	: ORIGIN = 0x81200000, LENGTH = 992K
+  RAM	(xrw)	: ORIGIN = 0x80a00000, LENGTH = 1024K
 }
 
-_Min_Heap_Size = 0x200;
-_Min_Stack_Size = 0x400;
-_estack = ORIGIN(RAM) + LENGTH(RAM);
+/* Highest address of the user mode stack */
+_estack = ORIGIN(RAM) + LENGTH(RAM);	/* end of "RAM" Ram type memory */
 _sstack = _estack - _Min_Stack_Size;
 
-/* OpenAMP */
-_virtio_shmem_size = 32K;
+_Min_Heap_Size = 0x200;	/* required amount of heap  */
+_Min_Stack_Size = 0x400;	/* required amount of stack */
+
+_virtio_shmem_size = 32K;  /* size of the virtio pool used for RPMsg communication */
+
+ /* Symbols needed for OpenAMP to enable rpmsg */
 __OPENAMP_region_start__  = ORIGIN(VIRTIO_SHMEM);
 __OPENAMP_region_end__ = ORIGIN(VIRTIO_SHMEM)+LENGTH(VIRTIO_SHMEM);
 
-/* OPTEE encryption requires 16-byte alignment */
 LINKER_DEFAULT_ALIGNMENT = 16;
 
 SECTIONS
 {
-  .isr_vectors : ALIGN(LINKER_DEFAULT_ALIGNMENT)
-  {
-    KEEP(*(.isr_vectors))
-    . = ALIGN(LINKER_DEFAULT_ALIGNMENT);
-  } >NS_VECTOR_TBL
+  /*
+   * To support firmware image encryption by OP-TEE (TF-M running on a coprocessor),
+   * we need to align all sections to have a modulo 16 size. This size is the atomic block size to
+   * encrypt. Use TFM_LINKER_DEFAULT_ALIGNMENT that is set to 32 bytes.
+   * Each section declared should respect this template:
+   *
+   * section_name : ALIGN(LINKER_DEFAULT_ALIGNMENT)
+   * {
+   *     ...
+   *     ALIGN(LINKER_DEFAULT_ALIGNMENT)
+   * }
+   */
 
-  .resource_table : ALIGN(LINKER_DEFAULT_ALIGNMENT)
-  {
-    KEEP (*(.resource_table*))
-    . = ALIGN(LINKER_DEFAULT_ALIGNMENT);
-  } >IPC_SHMEM_1
+  /* The startup code into "NS_VECTOR_TBL" Ram type memory
+   * Do not update the ".isr_vectors" section name. the name
+   * is used by the Linux kernel to retrieve the address
+   * of the vector table*/
+   .isr_vectors : ALIGN(LINKER_DEFAULT_ALIGNMENT)
+    {
+        KEEP(*(.isr_vectors))
+        . = ALIGN(LINKER_DEFAULT_ALIGNMENT);
+    } >NS_VECTOR_TBL
 
+    .resource_table : ALIGN(LINKER_DEFAULT_ALIGNMENT)
+    {
+        KEEP (*(.resource_table*))
+        . = ALIGN(LINKER_DEFAULT_ALIGNMENT);
+    } >IPC_SHMEM_1
+
+  /* The program code and other data into "RAM" Ram type memory */
   .text : ALIGN(LINKER_DEFAULT_ALIGNMENT)
   {
-    *(.text)
-    *(.text*)
-    *(.glue_7)
-    *(.glue_7t)
+    *(.text)           /* .text sections (code) */
+    *(.text*)          /* .text* sections (code) */
+    *(.glue_7)         /* glue arm to thumb code */
+    *(.glue_7t)        /* glue thumb to arm code */
     *(.eh_frame)
 
     KEEP (*(.init))
@@ -81,10 +126,11 @@ SECTIONS
     . = ALIGN(LINKER_DEFAULT_ALIGNMENT);
   } >FLASH
 
+  /* Constant data into "RAM" Ram type memory */
   .rodata : ALIGN(LINKER_DEFAULT_ALIGNMENT)
   {
-    *(.rodata)
-    *(.rodata*)
+    *(.rodata)         /* .rodata sections (constants, strings, etc.) */
+    *(.rodata*)        /* .rodata* sections (constants, strings, etc.) */
     . = ALIGN(LINKER_DEFAULT_ALIGNMENT);
   } >FLASH
 
@@ -129,30 +175,36 @@ SECTIONS
     . = ALIGN(LINKER_DEFAULT_ALIGNMENT);
   } >FLASH
 
+  /* Used by the startup to initialize data */
   _sidata = LOADADDR(.data);
 
+  /* Initialized data sections into "RAM" Ram type memory */
   .data : ALIGN(LINKER_DEFAULT_ALIGNMENT)
   {
-    _sdata = .;
-    *(.data)
-    *(.data*)
-    _edata = .;
+    _sdata = .;        /* create a global symbol at data start */
+    *(.data)           /* .data sections */
+    *(.data*)          /* .data* sections */
+
+    _edata = .;        /* define a global symbol at data end */
     . = ALIGN(LINKER_DEFAULT_ALIGNMENT);
   } >RAM AT> FLASH
 
+  /* Uninitialized data section into "RAM" Ram type memory */
   .bss : ALIGN(LINKER_DEFAULT_ALIGNMENT)
   {
-    _sbss = .;
+    /* This is used by the startup in order to initialize the .bss section */
+    _sbss = .;         /* define a global symbol at bss start */
     __bss_start__ = _sbss;
     *(.bss)
     *(.bss*)
     *(COMMON)
 
-    _ebss = .;
+    _ebss = .;         /* define a global symbol at bss end */
     __bss_end__ = _ebss;
     . = ALIGN(LINKER_DEFAULT_ALIGNMENT);
   } >RAM
 
+  /* User_heap_stack section, used to check that there is enough "RAM" Ram  type memory left */
   ._user_heap_stack : ALIGN(LINKER_DEFAULT_ALIGNMENT)
   {
     PROVIDE ( end = . );
