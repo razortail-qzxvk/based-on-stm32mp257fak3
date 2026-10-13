@@ -26,6 +26,7 @@ set(core_flags "--config=llvmlibc.cfg")
 set(CMAKE_ASM_FLAGS_INIT "${arch_flags}")
 set(CMAKE_C_FLAGS_INIT   "${arch_flags} ${core_flags}")
 set(CMAKE_CXX_FLAGS_INIT "${arch_flags} ${core_flags} -stdlib=libc++")
+set(CMAKE_EXE_LINKER_FLAGS_INIT "${arch_flags} ${core_flags} -stdlib=libc++")
 unset(core_flags)
 # compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
